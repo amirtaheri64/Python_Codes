@@ -1,8 +1,6 @@
 '''
 Monte Carlo Integration: naive computation
 
-Last updates: April-2-2019
-
 #########################################################
 Check points: 
 
