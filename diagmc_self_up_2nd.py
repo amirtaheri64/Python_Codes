@@ -135,9 +135,9 @@ def W(ORDER_NEW,ORDER_OLD):
 def update_order(ORDER):  # Change order by 1
   r=random()
   if r<1.0/2.0: 
-    val=ORDER-1
+    val=ORDER-2
   if r>=1.0/2.0:
-    val=ORDER+1
+    val=ORDER+2
   return val
 #End
 ###################################
@@ -164,13 +164,17 @@ def acp_rt(P_OLD,P_NEW):  # Return the acceptance ratio
   #print 'new state = ', ord_var_new
   ORDER_OLD=len(P_OLD)/2
   ORDER_NEW=len(P_NEW)/2
-  if ORDER_NEW==3 or ORDER_NEW==-1:  # If the order is out of range
+  if ORDER_NEW>=3 or ORDER_NEW<=-1:  # If the order is out of range
     val=0
     return val
-  if integrand_real(P_OLD)==0:
+  #if integrand_real(P_OLD)==0:
+    #val=1
+    #return val
+  #val=abs(integrand_real(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_real(P_OLD))/W(ORDER_NEW,ORDER_OLD)
+  if integrand_imag(P_OLD)==0:
     val=1
     return val
-  val=abs(integrand_real(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_real(P_OLD))/W(ORDER_NEW,ORDER_OLD)
+  val=abs(integrand_imag(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_imag(P_OLD))/W(ORDER_NEW,ORDER_OLD)
   #print 'integrand_new = ', integrand_real(P_NEW)
   #print 'integrand_old = ', integrand_real(P_OLD)
   return val
@@ -197,7 +201,11 @@ def new_state(OLD_STATE):  # Accept or reject the proposed state
     NEW_STATE = OLD_STATE
   else:  
     NEW_STATE = PROPOSED_STATE
-  if integrand_real(NEW_STATE)>0:
+  #if integrand_real(NEW_STATE)>0:
+    #sign=1
+  #else:
+    #sign=-1
+  if integrand_imag(NEW_STATE)>0:
     sign=1
   else:
     sign=-1
@@ -264,8 +272,8 @@ avg_2=0
 
 old_order=0  # Start from the zeroth order
 old_state=update_int_var(old_order)[:]  # Generate the initial state
-N=10000 # Length of Markov chain
-MC_iter=100000 # Monte Carlo iteration
+N=100 # Length of Markov chain
+MC_iter=1000 # Monte Carlo iteration
 avg0=0.0  # To store average
 avg1=0.0
 avg2=0.0
@@ -314,19 +322,20 @@ print 'avg_2= ', avg_2
 
 for i in range (0,MC_iter):  # Calculate the variance
   var0 = var0 + (x0[i]-avg_0)**2
-var0 = sqrt(var0/MC_iter-1)
+var0 = sqrt(var0/(MC_iter-1))
 var0 = var0/sqrt(MC_iter)
 print 'error_0 = ', var0
 
 for i in range (0,MC_iter):  # Calculate the variance
   var1 = var1 + (x1[i]-avg_1)**2
-var1 = sqrt(var1/MC_iter-1)
+var1 = sqrt(var1/(MC_iter-1))
 var1 = var1/sqrt(MC_iter)
 print 'error_1 = ', var1
 
 for i in range (0,MC_iter):  # Calculate the variance
   var2 = var2 + (x2[i]-avg_2)**2
-var2 = sqrt(var2/MC_iter-1)
+print var2
+var2 = sqrt(var2/(MC_iter-1))
 var2 = var2/sqrt(MC_iter)
 print 'error_2 = ', var2
 
@@ -334,16 +343,24 @@ print 'error_2 = ', var2
 #print 'Result = ', 1+(N-N_0)/N_0
 a1 = N_1/N_0
 print 'N1/N0 = ', a1
-error_N1_N0 = abs(a1) * sqrt( (var0/N_0)**2 + (var1/N_1)**2 )
-print 'error_N1/N0 = ', error_N1_N0 
+if a1!=0:
+  error_N1_N0 = abs(a1) * sqrt( (var0/N_0)**2 + (var1/N_1)**2 )
+  error_N1_N0 = abs(a1) * (var0/N_0 + var1/N_1 )
+  print 'error_N1/N0 = ', error_N1_N0 
 
 a2=N_2/N_0
 print 'N_2/N_0 = ', a2
-error_N2_N0 = abs(a2) * sqrt( (var0/N_0)**2 + (var2/N_2)**2 )
-print 'error_N2/N0 = ', error_N2_N0
+if a2!=0:
+  error_N2_N0 = abs(a2) * sqrt( (var0/N_0)**2 + (var2/N_2)**2 )
+  error_N2_N0 = abs(a2) * ( var0/abs(N_0) + var2/abs(N_2) )
+  print 'error_N2/N0 = ', error_N2_N0
 
-print 'Result = ', 1.0+(N_1+N_2)/N_0
-error = sqrt (error_N1_N0**2 + error_N2_N0**2)
+print 'Result = ', 1.0+a1+a2
+if N_1!=0:
+  error = sqrt (error_N1_N0**2 + error_N2_N0**2)
+  error = error_N1_N0 + error_N2_N0
+else:
+  error = error_N2_N0
 print 'error = ', error
 #var=numpy.std(x)
 #var = var/sqrt(MC_iter)
