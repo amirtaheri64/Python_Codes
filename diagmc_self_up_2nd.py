@@ -134,11 +134,18 @@ def W(ORDER_NEW,ORDER_OLD):
 #Begin
 def update_order(ORDER):  # Change order by 1
   r=random()
-  if r<1.0/2.0: 
-    val=ORDER-2
-  if r>=1.0/2.0:
-    val=ORDER+2
-  return val
+  if flag_re==1:
+    if r<1.0/2.0: 
+      val=ORDER-1
+    if r>=1.0/2.0:
+      val=ORDER+1
+    return val
+  if flag_re==0:
+    if r<1.0/2.0: 
+      val=ORDER-2
+    if r>=1.0/2.0:
+      val=ORDER+2
+    return val
 #End
 ###################################
 
@@ -167,14 +174,16 @@ def acp_rt(P_OLD,P_NEW):  # Return the acceptance ratio
   if ORDER_NEW>=3 or ORDER_NEW<=-1:  # If the order is out of range
     val=0
     return val
-  #if integrand_real(P_OLD)==0:
-    #val=1
-    #return val
-  #val=abs(integrand_real(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_real(P_OLD))/W(ORDER_NEW,ORDER_OLD)
-  if integrand_imag(P_OLD)==0:
-    val=1
-    return val
-  val=abs(integrand_imag(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_imag(P_OLD))/W(ORDER_NEW,ORDER_OLD)
+  if flag_re==1:
+    if integrand_real(P_OLD)==0:
+      val=1
+      return val
+    val=abs(integrand_real(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_real(P_OLD))/W(ORDER_NEW,ORDER_OLD)
+  if flag_re==0:
+    if integrand_imag(P_OLD)==0:
+      val=1
+      return val
+    val=abs(integrand_imag(P_NEW))*W(ORDER_OLD,ORDER_NEW)/abs(integrand_imag(P_OLD))/W(ORDER_NEW,ORDER_OLD)
   #print 'integrand_new = ', integrand_real(P_NEW)
   #print 'integrand_old = ', integrand_real(P_OLD)
   return val
@@ -201,21 +210,126 @@ def new_state(OLD_STATE):  # Accept or reject the proposed state
     NEW_STATE = OLD_STATE
   else:  
     NEW_STATE = PROPOSED_STATE
-  #if integrand_real(NEW_STATE)>0:
-    #sign=1
-  #else:
-    #sign=-1
-  if integrand_imag(NEW_STATE)>0:
-    sign=1
-  else:
-    sign=-1
+  if flag_re==1:
+    if integrand_real(NEW_STATE)>0:
+      sign=1
+    else:
+      sign=-1
+  if flag_re==0:
+    if integrand_imag(NEW_STATE)>0:
+      sign=1
+    else:
+      sign=-1
   #print 'state_new = ', NEW_STATE
   return NEW_STATE,sign
 #End
 ###################################
 
-a=-pi  # Lower limit of the integrals
-b=pi   # Upper limit of the integrals
+###################################
+############Measurement############
+###################################
+#Begin
+def measure(OLD_STATE):
+  x0=[]  # To store Markov's chain
+  x1=[]  # To store Markov's chain
+  x2=[]  # To store Markov's chain
+  for j in range (0,MC_iter):
+    N0=0.0
+    N1=0.0
+    N2=0.0
+    for i in range (0,N):  # To propose N states
+      next_state = new_state(OLD_STATE)[:]  # Update 
+      OLD_STATE = next_state[:][0]  
+      if i>1000:
+        if len(OLD_STATE)/2 == 0: # To compute N0
+          N0 = N0 + next_state[1]
+        if len(OLD_STATE)/2 == 1: # To compute N1
+          N1 = N1 + next_state[1]
+        if len(OLD_STATE)/2 == 2: # To compute N2
+          N2 = N2 + next_state[1]
+    x0.append(N0)
+    x1.append(N1)
+    x2.append(N2)
+  return x0,x1,x2
+#End
+###################################
+
+###################################
+###############Error###############
+###################################
+#Begin
+def stats(x0,x1,x2):  # xi: Markov's chain corresponding to Ni
+  var0=0.0  
+  var1=0.0
+  var2=0.0
+  avg_0=0.0
+  avg_1=0.0
+  avg_2=0.0
+  error_N1_N0=0.0
+  error_N2_N0=0.0
+
+  for i in range (0,len(x0)):
+    avg_0 = avg_0 + x0[i]
+  avg_0=avg_0/len(x0)
+  for i in range (0,len(x1)):
+    avg_1 = avg_1 + x1[i]
+  avg_1=avg_1/len(x1)
+  for i in range (0,len(x2)):
+    avg_2 = avg_2 + x2[i]
+  avg_2=avg_2/len(x2)
+  #print 'avg_0= ', avg_0
+  #print 'avg_1= ', avg_1
+  #print 'avg_2= ', avg_2
+
+  #var0=np.std(x0)
+  #var0 = var0/sqrt(MC_iter)
+  #var1=np.std(x1)
+  #var1 = var1/sqrt(MC_iter)
+  #var2=np.std(x2)
+  #var2 = var0/sqrt(MC_iter)
+  for i in range (0,MC_iter):  # Calculate the variance
+    var0 = var0 + (x0[i]-avg_0)**2
+    var1 = var1 + (x1[i]-avg_1)**2
+    var2 = var2 + (x2[i]-avg_2)**2
+  var0 = sqrt(var0/(MC_iter-1))
+  var0 = var0/sqrt(MC_iter)
+  #print 'error_0 = ', var0
+  var1 = sqrt(var1/(MC_iter-1))
+  var1 = var1/sqrt(MC_iter)
+  #print 'error_1 = ', var1
+  var2 = sqrt(var2/(MC_iter-1))
+  var2 = var2/sqrt(MC_iter)
+  #print 'error_2 = ', var2
+
+  a1 = avg_1/avg_0
+  #print 'N1/N0 = ', a1
+  if a1!=0:
+    #error_N1_N0 = abs(a1) * sqrt( (var0/avg_0)**2 + (var1/avg_1)**2 )
+    error_N1_N0 = abs(a1) * (var0/abs(avg_0) + var1/abs(avg_1) )
+    #print 'error_N1/N0 = ', error_N1_N0 
+  a2=avg_2/avg_0
+  #print 'N_2/N_0 = ', a2
+  if a2!=0:
+    #error_N2_N0 = abs(a2) * sqrt( (var0/avg_0)**2 + (var2/avg_2)**2 )
+    error_N2_N0 = abs(a2) * ( var0/abs(avg_0) + var2/abs(avg_2) )
+    #print 'error_N2/N0 = ', error_N2_N0
+  Result = a1+a2
+  #print 'Result = ', Result
+  if avg_1!=0:
+    #error = sqrt (error_N1_N0**2 + error_N2_N0**2)
+    error = error_N1_N0 + error_N2_N0
+  else:
+    error = error_N2_N0
+  #print 'error = ', error
+  return a1, error_N1_N0, a2, error_N2_N0, a1+a2, error
+#End
+###################################
+
+
+###################################
+###############Main################
+###################################
+#Begin
 
 ###################################
 ######Read external variables######
@@ -253,115 +367,31 @@ print
 #End
 ###################################
 
-#order_old=1
-#state_old=update_int_var(order_old)
-#print 'order_old = ', order_old
-#print 'state_old = ', state_old
-#new_state(state_old)
-
-
-x0=[]  # To store Markov's chain
-x1=[]
-x2=[]
-var0=0
-var1=0
-var2=0
-avg_0=0
-avg_1=0
-avg_2=0
-
+flag_re = 0  # Global variable  
+a=-pi  # Lower limit of the integrals
+b=pi   # Upper limit of the integrals
 old_order=0  # Start from the zeroth order
 old_state=update_int_var(old_order)[:]  # Generate the initial state
-N=100 # Length of Markov chain
+N=1000000 # Length of Markov chain
 MC_iter=1000 # Monte Carlo iteration
-avg0=0.0  # To store average
-avg1=0.0
-avg2=0.0
-for j in range (0,MC_iter):
-  N_0=0.0
-  N_1=0.0
-  N_2=0.0
-  for i in range (0,N):  # To propose N states
-    next_state = new_state(old_state)[:]  # Update 
-    old_state = next_state[:][0]  
-    if len(old_state)/2 == 0: # To compute N_0
-      N_0 = N_0 + next_state[1]
-    if len(old_state)/2 == 1: # To compute N_0
-      N_1 = N_1 + next_state[1]
-    if len(old_state)/2 == 2: # To compute N_0
-      N_2 = N_2 + next_state[1]
-  x0.append(N_0)
-  x1.append(N_1)
-  x2.append(N_2)
-  avg0=avg0+N_0 # To compute the average of N_0
-  avg1=avg1+N_1
-  avg2=avg2+N_2
-  #print N_0
-N_0=avg0/MC_iter  
-N_1=avg1/MC_iter
-N_2=avg2/MC_iter
-print 'a = ', a
-print 'b = ', b
+#print 'a = ', a
+#print 'b = ', b
 print 'N = ', N
-print 'N_0 = ', N_0
-print 'N_1 = ', N_1
-print 'N_2 = ', N_2
 print 'MC_iter = ', MC_iter
-for i in range (0,len(x0)):
-  avg_0 = avg_0 + x0[i]
-avg_0=avg_0/len(x0)
-for i in range (0,len(x1)):
-  avg_1 = avg_1 + x1[i]
-avg_1=avg_1/len(x1)
-for i in range (0,len(x2)):
-  avg_2 = avg_2 + x2[i]
-avg_2=avg_2/len(x2)
-print 'avg_0= ', avg_0
-print 'avg_1= ', avg_1
-print 'avg_2= ', avg_2
 
-for i in range (0,MC_iter):  # Calculate the variance
-  var0 = var0 + (x0[i]-avg_0)**2
-var0 = sqrt(var0/(MC_iter-1))
-var0 = var0/sqrt(MC_iter)
-print 'error_0 = ', var0
+chains = measure(old_state)  # Measurement
+output = stats(chains[0],chains[1],chains[2])  # Output
 
-for i in range (0,MC_iter):  # Calculate the variance
-  var1 = var1 + (x1[i]-avg_1)**2
-var1 = sqrt(var1/(MC_iter-1))
-var1 = var1/sqrt(MC_iter)
-print 'error_1 = ', var1
-
-for i in range (0,MC_iter):  # Calculate the variance
-  var2 = var2 + (x2[i]-avg_2)**2
-print var2
-var2 = sqrt(var2/(MC_iter-1))
-var2 = var2/sqrt(MC_iter)
-print 'error_2 = ', var2
-
-#print 'uncertainy = ', N*var/avg_x/avg_x
-#print 'Result = ', 1+(N-N_0)/N_0
-a1 = N_1/N_0
-print 'N1/N0 = ', a1
-if a1!=0:
-  error_N1_N0 = abs(a1) * sqrt( (var0/N_0)**2 + (var1/N_1)**2 )
-  error_N1_N0 = abs(a1) * (var0/N_0 + var1/N_1 )
-  print 'error_N1/N0 = ', error_N1_N0 
-
-a2=N_2/N_0
-print 'N_2/N_0 = ', a2
-if a2!=0:
-  error_N2_N0 = abs(a2) * sqrt( (var0/N_0)**2 + (var2/N_2)**2 )
-  error_N2_N0 = abs(a2) * ( var0/abs(N_0) + var2/abs(N_2) )
-  print 'error_N2/N0 = ', error_N2_N0
-
-print 'Result = ', 1.0+a1+a2
-if N_1!=0:
-  error = sqrt (error_N1_N0**2 + error_N2_N0**2)
-  error = error_N1_N0 + error_N2_N0
+if flag_re==1:
+  print 'Results for the real part:'
 else:
-  error = error_N2_N0
-print 'error = ', error
+  print 'Results for the imaginary part:'
+
+print 'a1 = ', output[0], '+-', output[1]
+print 'a2 = ', output[2], '+-', output[3]
+print 'Result = ', output[4], '+-', output[5]
+
+
 #var=numpy.std(x)
 #var = var/sqrt(MC_iter)
 #print 'uncertainy = ', N*var/avg_x/avg_x
