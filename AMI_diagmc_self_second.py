@@ -217,18 +217,37 @@ def acp_rt(G_OLD,ORDER_OLD,G_NEW,ORDER_NEW):  # Return the acceptance ratio
   #print 'int_old_re = ', int_old_re
   #print 'int_new_re = ', int_new_re
   #print 'W = ', W(ORDER_NEW)
-  p=(2*min(ORDER_OLD,ORDER_NEW)+1)
-  #print 'pB/pA = ', p
   if flag_re==1:
     if int_old_re==0:
-      val=1
-      return val
-    val=abs(int_new_re)/abs(int_old_re)/W(ORDER_NEW)
+      val=1,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
     if ORDER_NEW>ORDER_OLD:
+      val=abs(int_new_re)*W(ORDER_OLD)/abs(int_old_re)/W(ORDER_NEW)
+      p=(2.0*ORDER_OLD+1.0)*(2.0*ORDER_OLD+1.0)/(ORDER_OLD+1.0)
       val=p*val
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
     else:
-      val=val/p
-  return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+      val=abs(int_new_re)*W(ORDER_OLD)/abs(int_old_re)/W(ORDER_NEW)
+      p=ORDER_OLD/(2.0*ORDER_OLD-1.0)/(2.0*ORDER_OLD-1.0)
+      val=p*val
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+
+  if flag_re==0:
+    if int_old_im==0:
+      val=1,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+    if ORDER_NEW>ORDER_OLD:
+      val=abs(int_new_im)*W(ORDER_OLD)/abs(int_old_im)/W(ORDER_NEW)
+      #p=(2.0*ORDER_OLD+1.0)*(2.0*ORDER_OLD+1.0)/(ORDER_OLD+1.0)
+      p=(2.0*ORDER_OLD+1.0)
+      val=p*val
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
+    else:
+      val=abs(int_new_im)*W(ORDER_OLD)/abs(int_old_im)/W(ORDER_NEW)
+      #p=ORDER_OLD/(2.0*ORDER_OLD-1.0)/(2.0*ORDER_OLD-1.0)
+      p=1.0/(2.0*ORDER_OLD-1.0)
+      val=p*val
+      return val,sign_old_re,sign_old_im,sign_new_re,sign_new_im
 #End
 ###################################
      
@@ -307,30 +326,110 @@ print 'a = ', lat_const
 print
 #End
 ###################################
+
 next_state=[]
-flag_re = 1  # Global variable
+flag_re = 0  # Global variable
 a_l=-pi  # Lower limit of the integrals
 b_h=pi   # Upper limit of the integrals
 m_old=2   # Order of the initial state
 old_diag=generate_g_2(m_old)  # generate initial state
 #old_diag=g1.copy()
-print 'old_diag = ', old_diag
+#print 'old_diag = ', old_diag
 
-for i in range (0,1000):
-  next_state.append(new_state(old_diag,m_old))
-  #print 'next_diag = ', next_state[0][0]
-  #print 'next_order = ', next_state[0][1]
-  #print next_state[0][2]
-  reset_g(next_state[0][0],next_state[0][1])
-  next_diag=next_state[0][0].copy()
-  next_order=next_state[0][1]
-  next_sign=next_state[0][2]
-  old_diag=next_state[0][0].copy()
-  m_old=next_state[0][1]
+N=10000
+T=1000
+print 'T = ', T
+print 'N = ', N
+avg_N1=0
+avg_N2=0
+var1=0
+var2=0
+x1=[]
+x2=[]
+for i_N in range (0,T):
+  N1=0.0
+  N2=0.0
+  for i_T in range(0,N):
+    next_state.append(new_state(old_diag,m_old))
+    #print 'next_diag = ', next_state[0][0]
+    #print 'next_order = ', next_state[0][1]
+    #print next_state[0][2]
+    reset_g(next_state[0][0],next_state[0][1])
+    next_diag=next_state[0][0].copy()
+    next_order=next_state[0][1]
+    next_sign=next_state[0][2]
+    old_diag=next_state[0][0].copy()
+    m_old=next_state[0][1]
+    if m_old==1:
+      N1=N1+1.0
+    if m_old==2:
+      N2=N2+next_sign
+    reset_g(old_diag,m_old)  
+    next_state=[]
+  x1.append(N1)
+  x2.append(N2)
   #print 'old_diag = ', old_diag
-  print 'm_old = ', m_old
-  reset_g(old_diag,m_old)  
-  next_state=[]
+  #print 'm_old = ', m_old
+  
+
+#print N1  
+#print N2/N1
+#print x1
+#print x2
+#print len(x1)
+#print len(x2)
+
+
+for i_1 in range (0,T):
+  avg_N1=avg_N1+x1[i_1]
+  avg_N2=avg_N2+x2[i_1]
+avg_N1=avg_N1/T
+avg_N2=avg_N2/T
+
+#for i_2 in range (0,len(x2)):
+#  avg_N2=avg_N2+x2[i_2]
+#avg_N2=avg_N2/len(x2)
+
+result=avg_N2/avg_N1
+
+print 'Result = ', result
+ 
+for i in range (0,T):  # Calculate the variance
+  var1 = var1 + (x1[i]-avg_N1)**2
+  var2 = var2 + (x2[i]-avg_N2)**2
+
+var1 = sqrt(var1/(T-1))
+var1 = var1/sqrt(T)
+#print 'error_1 = ', var1
+var2 = sqrt(var2/(T-1))
+var2 = var2/sqrt(T)
+#print 'error_2 = ', var2
+
+error = abs(result) * (var1/abs(avg_N1) + var2/abs(avg_N2) )
+
+print 'error = ', error
+
+'''
+s=0
+for i in range (0,1):
+  m_old=1
+  old_diag=generate_g_1_con(m_old)
+  #remove_int_line(old_diag)
+  #m_old=m_old-1
+  #reset_g(old_diag,m_old)
+  #print old_diag
+  add_int_line(old_diag)
+  #remove_int_line(old_diag)
+  reset_g(old_diag,2)
+  if checks(old_diag,2)[0]==1:
+    s=s+1
+  #print old_diag
+print s 
+#for i in range (0,10):
+  #next_diag=old_diag.copy()
+  #add_int_line(next_diag)
+  #print old_diag
+'''  
   
   
 
